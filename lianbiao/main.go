@@ -32,7 +32,7 @@ func print()  {
 	for {
 		fmt.Printf("%p ; %+v \n",tmp,tmp)
 		if(tmp.adress == nil){
-			break;
+			break
 		}
 		tmp = tmp.adress
 
@@ -49,8 +49,8 @@ func fanzhuan() {
 		tmp = top
 		top = v
 		if(top == nil){
-			top = tmp;
-			break;
+			top = tmp
+			break
 		}
 	}
 	//return top
