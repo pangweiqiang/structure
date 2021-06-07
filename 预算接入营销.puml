@@ -1,0 +1,16 @@
+@startuml
+actor 管理员 as user
+participant "营销平台" as tk
+participant "预算中心" as tc
+
+
+user->tk:配置营销活动
+activate tk
+tk->tc:扣除预算
+tk<-tc:返回结果
+opt 本地事务失败
+    tk->tc:取消扣除
+    note right: key: 营销后端调用
+end
+
+@enduml

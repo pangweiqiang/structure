@@ -1,0 +1,108 @@
+@startuml
+actor 用户 as user
+participant "营销平台" as tk
+participant "预算中心" as tc
+participant "pay-platform" as pay
+participant basecenter as bc
+box 基础组件
+database redis
+database "db:slave" as db
+database "db:master" as dbm
+end box
+
+==用户取消==
+user->tk:取消订单
+activate tk
+tk<->redis:查询订单缓存
+opt 缓存未命中
+    tk<->db:查询订单
+    tk->redis:设置订单缓存
+    note right: key: 订单id\nexpire: 10分钟
+end
+tk<->db:查询支付流水
+opt 无支付流水
+    tk->pay:pay/query
+    activate pay
+    return 订单支付状态
+    opt 订单已支付
+        tk->tk:执行支付回调出票流程
+    end
+end
+tk->dbm:开启事务
+activate dbm
+alt 拼团订单
+    tk->dbm:更新拼团订单为已取消
+    tk<->db:获取拼团信息
+    tk->redis:删除拼团缓存
+else 抱团购订单
+    tk->dbm:更新抱团购订单为已取消
+else 普通订单
+    tk<->db:获取下单库存日志
+    tk->dbm:回滚下单日志
+    tk->dbm:释放锁定库存
+    tk->redis:删除库存缓存
+end
+opt 选座
+    tk->dbm:释放锁定座位
+    tk<->dbm:查询座位信息
+    tk->redis:从不可售座位缓存去掉选定座位
+end
+tk->dbm:update订单状态为已取消
+tk->dbm:提交事务
+deactivate dbm
+tk->redis:删除抱团购订单缓存
+tk->redis:删除用户最近购买项目缓存
+tk->redis:push入待发送通知
+tk->dbm:insert订单操作日志
+return 返回操作结果
+
+==自动取消==
+alt 默认过期时间
+    tc<->db:扫描10分钟前创建且未支付订单
+else 自定义过期时间
+    tc<->db:扫描定时任务
+    tc<->redis:获取订单缓存
+    tc<->redis:查询项目自定义支付超时时间
+end
+tc->tc:和用户取消相同流程
+
+newpage
+==拼团过期==
+activate tc
+tc<->db:扫描到达过期时间的拼团
+tc<->redis:查询拼团缓存
+opt 缓存未命中
+    tc<->db:查询拼团信息
+    tc->redis:设置拼团缓存
+end
+tc->dbm:开启事务
+activate dbm
+tc<->db:查询本拼团的订单
+loop 遍历拼团的订单
+    tc<->db:查询支付流水
+    tc->pay:pay/query
+    activate pay
+    return 返回订单支付状态
+    opt 订单已支付
+        tc->tc:执行支付回调出票流程
+    end
+end
+tc<->dbm:查询各拼团订单状态
+tc<->redis:查询活动缓存
+opt 缓存未命中
+    tc<->db:查询活动信息
+    tc->redis:设置活动缓存
+end
+loop 遍历未支付订单
+    tc->dbm:更新订单为已取消
+    tc->bc:publicorder/update
+end
+loop 遍历已支付谙
+    tc->dbm:更新订单为待退款
+    tc->bc:publicorder/update
+end
+tc->dbm:更新拼团为失败
+tc->dbm:提交事务
+deactivate dbm
+deactivate tc
+@enduml
