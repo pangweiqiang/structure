@@ -10,7 +10,7 @@ func main()  {
 		6,6,8,
 	}
 	c:= []interface{}{2,3,9666}
- fmt.Printf("%+v",array_merge(a,b,c))
+    fmt.Printf("%+v",array_merge(a,b,c))
 }
 
 func array_merge(slice ...[]interface{}) (res []interface{}){
