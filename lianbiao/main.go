@@ -56,4 +56,23 @@ func fanzhuan() {
 	//return top
 }
 
+//
+func huanxing(p *point) bool  {
+	if (p == nil || p.adress == nil || p.adress.adress == nil){
+		return false
+	}
+	slow := p.adress
+	fast := p.adress.adress
+	for {
+		if(slow == fast){
+			return true;
+		}
+		if(fast.adress == nil || fast.adress.adress == nil){
+			return false;
+		}
+		slow = slow.adress
+		fast = fast.adress.adress
+	}
+	return false
 
+}
