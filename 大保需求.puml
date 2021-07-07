@@ -1,0 +1,25 @@
+@startuml
+
+participant "票务后台" as tk
+participant "大保系统" as dabao
+box 基础组件
+database redis
+database "db:slave" as db
+database "db:master" as dbm
+end box
+
+
+tk<->db:获取已经出票订单
+tk<->db:校验订单是否满足推送条件
+activate tk
+tk<->redis:获取订单推送所需业务数据
+opt 缓存未命中
+    tk<->db:从db查询所需业务数据
+    tk->redis:设置缓存
+    note right: 不通业务设置时长不同
+end
+tk->dabao:推送订单售卖数据到打保系统
+opt 推送失败
+    tk->dabao:重推2次
+end
+@enduml
